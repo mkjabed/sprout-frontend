@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios.js";
+import PinModal from "../components/PinModal.jsx";
 import ProfileCard from "../components/ProfileCard.jsx";
 import { useAuth } from "../context/useAuth.js";
 
@@ -10,6 +11,7 @@ function ProfileSelector() {
   const [children, setChildren] = useState([]);
   const [isLoading, setIsLoading] = useState(Boolean(token));
   const [errorMessage, setErrorMessage] = useState("");
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -56,9 +58,7 @@ function ProfileSelector() {
   }, [token]);
 
   const guardianName = guardian?.name || guardian?.full_name || "Guardian";
-  const guardianSubtitle = token
-    ? "Tap to open your dashboard"
-    : "Unlock guardian mode with your PIN";
+  const guardianSubtitle = "Unlock guardian mode with your PIN";
 
   return (
     <main className="min-h-screen bg-[#D8F3DC] px-4 py-6 text-[#1B1B1B]">
@@ -82,7 +82,7 @@ function ProfileSelector() {
               subtitle={guardianSubtitle}
               locked
               accent="guardian"
-              onClick={() => {}}
+              onClick={() => setIsPinModalOpen(true)}
             />
 
             {isLoading ? (
@@ -127,6 +127,11 @@ function ProfileSelector() {
           Calm routines for kids and guardians.
         </div>
       </div>
+
+      <PinModal
+        isOpen={isPinModalOpen}
+        onClose={() => setIsPinModalOpen(false)}
+      />
     </main>
   );
 }

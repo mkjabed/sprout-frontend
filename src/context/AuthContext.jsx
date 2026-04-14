@@ -1,27 +1,22 @@
-import { createContext, useContext, useEffect, useState } from "react";
-
-const AuthContext = createContext(null);
+import { useState } from "react";
+import AuthContext from "./authContext.js";
 
 export function AuthProvider({ children }) {
-  const [guardian, setGuardian] = useState(null);
-  const [token, setToken] = useState(null);
-
-  useEffect(() => {
-    const storedToken = localStorage.getItem("sprout_token");
+  const [token, setToken] = useState(() => localStorage.getItem("sprout_token"));
+  const [guardian, setGuardian] = useState(() => {
     const storedGuardian = localStorage.getItem("sprout_guardian");
 
-    if (storedToken) {
-      setToken(storedToken);
+    if (!storedGuardian) {
+      return null;
     }
 
-    if (storedGuardian) {
-      try {
-        setGuardian(JSON.parse(storedGuardian));
-      } catch {
-        localStorage.removeItem("sprout_guardian");
-      }
+    try {
+      return JSON.parse(storedGuardian);
+    } catch {
+      localStorage.removeItem("sprout_guardian");
+      return null;
     }
-  }, []);
+  });
 
   const login = (nextToken, nextGuardian) => {
     setToken(nextToken);
@@ -52,14 +47,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-
-  return context;
 }

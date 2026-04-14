@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { useAuth } from "./context/AuthContext.jsx";
+import { useAuth } from "./context/useAuth.js";
 import ChildScorecard from "./pages/ChildScorecard.jsx";
 import GuardianDashboard from "./pages/GuardianDashboard.jsx";
 import ProfileSelector from "./pages/ProfileSelector.jsx";

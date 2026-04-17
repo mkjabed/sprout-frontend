@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api/axios.js";
 import CelebrationScreen from "../components/CelebrationScreen.jsx";
+import EmptyStateCard from "../components/EmptyStateCard.jsx";
 import TaskItem from "../components/TaskItem.jsx";
 
 function getDailyLogs(payload) {
@@ -227,6 +228,7 @@ function ChildScorecard() {
   const rewardRemaining = Math.max(rewardTarget - rewardProgress, 0);
   const rewardPercent =
     rewardTarget > 0 ? Math.min((rewardProgress / rewardTarget) * 100, 100) : 0;
+  const hasReward = Boolean(reward);
   const todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
@@ -306,9 +308,11 @@ function ChildScorecard() {
                       />
                     ))
                   ) : (
-                    <div className="rounded-[24px] bg-[#F4F4F4] p-4 text-sm text-[#1B1B1B]/55">
-                      No must-do tasks yet.
-                    </div>
+                    <EmptyStateCard
+                      eyebrow="Must-Do Tasks"
+                      title="No must-do tasks yet"
+                      description="A guardian can add the main routines for today, then they will appear here for you to complete."
+                    />
                   )}
                 </div>
               </section>
@@ -334,35 +338,45 @@ function ChildScorecard() {
                       />
                     ))
                   ) : (
-                    <div className="rounded-[24px] bg-[#F4F4F4] p-4 text-sm text-[#1B1B1B]/55">
-                      No optional tasks yet.
-                    </div>
+                    <EmptyStateCard
+                      eyebrow="Optional Tasks"
+                      title="No bonus tasks yet"
+                      description="Optional activities will show up here when a guardian adds extra ways to earn points."
+                    />
                   )}
                 </div>
               </section>
 
-              <section className="rounded-[30px] bg-[#1B1B1B] p-5 text-white shadow-[0_18px_40px_-28px_rgba(27,27,27,0.6)]">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-white/65">Active reward</p>
-                    <h2 className="mt-1 text-xl font-semibold">{rewardName}</h2>
+              {hasReward ? (
+                <section className="rounded-[30px] bg-[#1B1B1B] p-5 text-white shadow-[0_18px_40px_-28px_rgba(27,27,27,0.6)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-white/65">Active reward</p>
+                      <h2 className="mt-1 text-xl font-semibold">{rewardName}</h2>
+                    </div>
+                    <p className="text-sm font-semibold text-[#D8F3DC]">
+                      {rewardProgress}/{rewardTarget || 0}
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold text-[#D8F3DC]">
-                    {rewardProgress}/{rewardTarget || 0}
+                  <div className="mt-4 h-3 rounded-full bg-white/15">
+                    <div
+                      className="h-3 rounded-full bg-[#52B788] transition-[width]"
+                      style={{ width: `${rewardPercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-3 text-sm text-white/72">
+                    {rewardRemaining > 0
+                      ? `${rewardName} - ${rewardRemaining} more points needed`
+                      : `${rewardName} is ready to unlock`}
                   </p>
-                </div>
-                <div className="mt-4 h-3 rounded-full bg-white/15">
-                  <div
-                    className="h-3 rounded-full bg-[#52B788] transition-[width]"
-                    style={{ width: `${rewardPercent}%` }}
-                  />
-                </div>
-                <p className="mt-3 text-sm text-white/72">
-                  {rewardRemaining > 0
-                    ? `${rewardName} - ${rewardRemaining} more points needed`
-                    : `${rewardName} is ready to unlock`}
-                </p>
-              </section>
+                </section>
+              ) : (
+                <EmptyStateCard
+                  eyebrow="Reward Goal"
+                  title="No reward goal yet"
+                  description="A guardian can set a reward for this child, and then point progress will start filling up here."
+                />
+              )}
             </>
           ) : null}
         </section>

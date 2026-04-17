@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api/axios.js";
+import BackToKidsButton from "../components/BackToKidsButton.jsx";
+import EmptyStateCard from "../components/EmptyStateCard.jsx";
+import SuccessToast from "../components/SuccessToast.jsx";
 
 function getChildId(child) {
   return child.id ?? child.child_id ?? child.childId;
@@ -83,6 +86,7 @@ function TaskManager() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [title, setTitle] = useState("");
   const [taskType, setTaskType] = useState("must_do");
 
@@ -225,6 +229,7 @@ function TaskManager() {
       setTitle("");
       setTaskType("must_do");
       setIsModalOpen(false);
+      setSuccessMessage("Task created successfully.");
     } catch {
       setErrorMessage("We couldn't save that task right now.");
     } finally {
@@ -237,6 +242,10 @@ function TaskManager() {
 
   return (
     <main className="min-h-screen bg-[#F4F4F4] px-4 pb-28 pt-5 text-[#1B1B1B]">
+      <SuccessToast
+        message={successMessage}
+        onClose={() => setSuccessMessage("")}
+      />
       <div className="mx-auto w-full max-w-sm">
         <header className="rounded-[30px] bg-white p-5 shadow-[0_18px_40px_-28px_rgba(27,27,27,0.35)]">
           <div className="flex items-start justify-between gap-4">
@@ -251,13 +260,7 @@ function TaskManager() {
                 Switch between children, keep tasks active, and add new routines.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="min-h-12 shrink-0 rounded-2xl bg-[#D8F3DC] px-4 text-sm font-semibold text-[#2D6A4F]"
-            >
-              Back to Kids View
-            </button>
+            <BackToKidsButton onClick={() => navigate("/")} />
           </div>
         </header>
 
@@ -330,9 +333,16 @@ function TaskManager() {
                   />
                 ))
               ) : (
-                <div className="rounded-[24px] bg-[#F4F4F4] p-4 text-sm text-[#1B1B1B]/55">
-                  No must-do tasks yet.
-                </div>
+                <EmptyStateCard
+                  eyebrow="Must-Do Tasks"
+                  title="No must-do routines yet"
+                  description="Start with the daily essentials this child should finish first. They will show up on the scorecard and help build the streak."
+                  actionLabel="Add must-do task"
+                  onAction={() => {
+                    setTaskType("must_do");
+                    setIsModalOpen(true);
+                  }}
+                />
               )}
             </div>
           </section>
@@ -365,9 +375,16 @@ function TaskManager() {
                   />
                 ))
               ) : (
-                <div className="rounded-[24px] bg-[#F4F4F4] p-4 text-sm text-[#1B1B1B]/55">
-                  No optional tasks yet.
-                </div>
+                <EmptyStateCard
+                  eyebrow="Optional Tasks"
+                  title="No bonus tasks yet"
+                  description="Add a few extra activities to give this child more ways to earn points after the must-do list is done."
+                  actionLabel="Add optional task"
+                  onAction={() => {
+                    setTaskType("optional");
+                    setIsModalOpen(true);
+                  }}
+                />
               )}
             </div>
           </section>

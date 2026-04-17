@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import api from "../api/axios.js";
+import BackToKidsButton from "../components/BackToKidsButton.jsx";
 import { useAuth } from "../context/useAuth.js";
 
 function getChildId(child) {
@@ -216,13 +217,10 @@ function GuardianDashboard() {
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <button
-                type="button"
+              <BackToKidsButton
                 onClick={() => navigate("/")}
-                className="min-h-12 rounded-2xl bg-white px-4 text-sm font-semibold text-[#2D6A4F]"
-              >
-                Back to Kids View
-              </button>
+                variant="dark"
+              />
               <button
                 type="button"
                 onClick={logout}

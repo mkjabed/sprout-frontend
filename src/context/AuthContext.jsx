@@ -24,6 +24,10 @@ export function AuthProvider({ children }) {
 
     localStorage.setItem("sprout_token", nextToken);
     localStorage.setItem("sprout_guardian", JSON.stringify(nextGuardian));
+
+    if (nextGuardian?.email) {
+      localStorage.setItem("sprout_email", nextGuardian.email);
+    }
   };
 
   const logout = () => {

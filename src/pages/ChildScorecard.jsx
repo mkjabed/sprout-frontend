@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api/axios.js";
+import CelebrationScreen from "../components/CelebrationScreen.jsx";
 import TaskItem from "../components/TaskItem.jsx";
 
 function getDailyLogs(payload) {
@@ -23,8 +24,9 @@ function getDailyLogs(payload) {
   return [];
 }
 
-function getChildName(payload, logs, childId) {
+function getChildName(payload, logs, child, childId) {
   return (
+    child?.name ||
     payload?.child_name ||
     payload?.child?.name ||
     logs[0]?.child_name ||
@@ -65,6 +67,10 @@ function getReward(payload) {
     return null;
   }
 
+  if (Array.isArray(payload) && payload.length > 0) {
+    return payload.find((item) => !item.is_delivered) || payload[0];
+  }
+
   if (payload.reward) {
     return payload.reward;
   }
@@ -80,10 +86,20 @@ function getReward(payload) {
   return null;
 }
 
+function getLogId(log) {
+  return log.log_id ?? log.id;
+}
+
 function ChildScorecard() {
   const { childId } = useParams();
+  const [child, setChild] = useState(null);
   const [dailyPayload, setDailyPayload] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [reward, setReward] = useState(null);
+  const [pointsEarnedToday, setPointsEarnedToday] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [isCelebrationOpen, setIsCelebrationOpen] = useState(false);
+  const [pendingLogId, setPendingLogId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -95,18 +111,44 @@ function ChildScorecard() {
       setErrorMessage("");
 
       try {
-        const response = await api.get(`/daily/${childId}`);
-        const nextPayload = response.data;
+        const [childrenResponse, dailyResponse, rewardResponse] = await Promise.all([
+          api.get("/children"),
+          api.get(`/daily/${childId}`),
+          api.get(`/rewards/${childId}`),
+        ]);
+        const nextChildren = Array.isArray(childrenResponse.data) ? childrenResponse.data : [];
+        const nextChild =
+          nextChildren.find((item) => String(item.id) === String(childId)) || null;
+        const nextPayload = dailyResponse.data;
         const nextLogs = getDailyLogs(nextPayload);
+        const nextReward = getReward(rewardResponse.data);
+        const earnedPoints = nextLogs.reduce(
+          (total, log) => total + (getCompletedValue(log) ? getTaskPoints(log) : 0),
+          0,
+        );
+        const mustDoLogs = nextLogs.filter((log) => isMustDoTask(log));
+        const allMustDoComplete =
+          mustDoLogs.length > 0 &&
+          mustDoLogs.every((log) => getCompletedValue(log));
 
         if (isMounted) {
+          setChild(nextChild);
           setDailyPayload(nextPayload);
           setLogs(nextLogs);
+          setReward(nextReward);
+          setPointsEarnedToday(earnedPoints);
+          setStreak(nextPayload?.streak ?? nextPayload?.current_streak ?? 0);
+          setIsCelebrationOpen(allMustDoComplete);
         }
       } catch {
         if (isMounted) {
+          setChild(null);
           setDailyPayload(null);
           setLogs([]);
+          setReward(null);
+          setPointsEarnedToday(0);
+          setStreak(0);
+          setIsCelebrationOpen(false);
           setErrorMessage("We couldn't load today's scorecard right now.");
         }
       } finally {
@@ -123,22 +165,67 @@ function ChildScorecard() {
     };
   }, [childId]);
 
-  const childName = getChildName(dailyPayload, logs, childId);
-  const completedLogs = logs.filter((log) => getCompletedValue(log));
+  async function handleTaskComplete(log) {
+    const logId = getLogId(log);
+
+    if (!logId || getCompletedValue(log) || pendingLogId) {
+      return;
+    }
+
+    setPendingLogId(logId);
+    setErrorMessage("");
+
+    try {
+      const response = await api.post(`/daily/${logId}/complete`);
+      const pointsEarned = response.data?.points_earned ?? getTaskPoints(log);
+      const nextLogs = logs.map((currentLog) =>
+        getLogId(currentLog) === logId
+          ? {
+              ...currentLog,
+              completed: true,
+              points_earned: pointsEarned,
+            }
+          : currentLog,
+      );
+      const mustDoLogs = nextLogs.filter((currentLog) => isMustDoTask(currentLog));
+      const allMustDoComplete =
+        mustDoLogs.length > 0 &&
+        mustDoLogs.every((currentLog) => getCompletedValue(currentLog));
+
+      setLogs(nextLogs);
+      setPointsEarnedToday((currentPoints) => currentPoints + pointsEarned);
+      setReward((currentReward) =>
+        currentReward
+          ? {
+              ...currentReward,
+              current_points: (currentReward.current_points ?? 0) + pointsEarned,
+            }
+          : currentReward,
+      );
+
+      if (allMustDoComplete) {
+        setStreak((currentStreak) => currentStreak + 1);
+        setIsCelebrationOpen(true);
+      }
+    } catch (error) {
+      setErrorMessage(
+        error.response?.status === 400
+          ? "That task is already complete."
+          : "We couldn't update that task right now.",
+      );
+    } finally {
+      setPendingLogId(null);
+    }
+  }
+
+  const childName = getChildName(dailyPayload, logs, child, childId);
   const mustDoTasks = logs.filter((log) => isMustDoTask(log));
   const optionalTasks = logs.filter((log) => !isMustDoTask(log));
-  const totalPoints =
-    dailyPayload?.total_points ??
-    dailyPayload?.points_earned ??
-    completedLogs.reduce((total, log) => total + getTaskPoints(log), 0);
-  const streak =
-    dailyPayload?.streak ?? dailyPayload?.current_streak ?? dailyPayload?.child?.streak ?? 0;
-  const reward = getReward(dailyPayload);
   const rewardName = reward?.title || reward?.name || "Next reward";
   const rewardTarget =
     reward?.points_required ?? reward?.pointsRequired ?? reward?.target_points ?? 0;
   const rewardProgress =
-    reward?.current_points ?? reward?.currentPoints ?? dailyPayload?.current_points ?? totalPoints;
+    reward?.current_points ?? reward?.currentPoints ?? pointsEarnedToday;
   const rewardRemaining = Math.max(rewardTarget - rewardProgress, 0);
   const rewardPercent =
     rewardTarget > 0 ? Math.min((rewardProgress / rewardTarget) * 100, 100) : 0;
@@ -166,7 +253,7 @@ function ChildScorecard() {
                 Points today
               </p>
               <p className="mt-2 text-2xl font-semibold text-[#2D6A4F]">
-                {totalPoints}
+                {pointsEarnedToday}
               </p>
             </div>
             <div className="rounded-[24px] bg-[#2D6A4F] p-4 text-white">
@@ -212,10 +299,12 @@ function ChildScorecard() {
                   {mustDoTasks.length > 0 ? (
                     mustDoTasks.map((log) => (
                       <TaskItem
-                        key={log.id ?? log.log_id ?? getTaskTitle(log)}
+                        key={getLogId(log) ?? getTaskTitle(log)}
                         title={getTaskTitle(log)}
                         points={getTaskPoints(log)}
                         completed={getCompletedValue(log)}
+                        disabled={Boolean(pendingLogId)}
+                        onClick={() => handleTaskComplete(log)}
                       />
                     ))
                   ) : (
@@ -238,10 +327,12 @@ function ChildScorecard() {
                   {optionalTasks.length > 0 ? (
                     optionalTasks.map((log) => (
                       <TaskItem
-                        key={log.id ?? log.log_id ?? getTaskTitle(log)}
+                        key={getLogId(log) ?? getTaskTitle(log)}
                         title={getTaskTitle(log)}
                         points={getTaskPoints(log)}
                         completed={getCompletedValue(log)}
+                        disabled={Boolean(pendingLogId)}
+                        onClick={() => handleTaskComplete(log)}
                       />
                     ))
                   ) : (
@@ -278,6 +369,14 @@ function ChildScorecard() {
           ) : null}
         </section>
       </div>
+
+      <CelebrationScreen
+        isOpen={isCelebrationOpen}
+        childName={childName}
+        pointsEarned={pointsEarnedToday}
+        streak={streak}
+        onClose={() => setIsCelebrationOpen(false)}
+      />
     </main>
   );
 }

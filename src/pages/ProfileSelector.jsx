@@ -68,7 +68,7 @@ function ProfileSelector() {
             Daily Habit Tracker
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#1B1B1B]">
-            Sprout 🌱
+            Sprout {"\u{1F331}"}
           </h1>
           <p className="mt-3 text-sm leading-6 text-[#1B1B1B]/65">
             Pick a profile to start the day.

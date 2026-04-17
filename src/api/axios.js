@@ -7,6 +7,7 @@ const api = axios.create({
 function clearSession() {
   localStorage.removeItem("sprout_token");
   localStorage.removeItem("sprout_guardian");
+  localStorage.removeItem("sprout_email");
 }
 
 api.interceptors.request.use(

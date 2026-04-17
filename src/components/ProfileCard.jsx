@@ -29,7 +29,7 @@ function ProfileCard({
         }`}
         aria-hidden="true"
       >
-        {locked ? "🔒" : "🌱"}
+        {locked ? "\u{1F512}" : "\u{1F331}"}
       </div>
     </button>
   );

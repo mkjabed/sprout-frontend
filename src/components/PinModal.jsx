@@ -172,7 +172,7 @@ function PinModal({ isOpen, onClose }) {
             className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F4F4] text-xl text-[#1B1B1B]"
             aria-label="Close PIN modal"
           >
-            ×
+            {"\u00D7"}
           </button>
         </div>
 

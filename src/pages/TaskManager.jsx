@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, useSearchParams } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api/axios.js";
 
 function getChildId(child) {
@@ -69,6 +69,7 @@ function TaskRow({ task, onToggle, isUpdating }) {
 }
 
 function TaskManager() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedChildId = searchParams.get("childId") || "";
   const [children, setChildren] = useState([]);
@@ -238,15 +239,26 @@ function TaskManager() {
     <main className="min-h-screen bg-[#F4F4F4] px-4 pb-28 pt-5 text-[#1B1B1B]">
       <div className="mx-auto w-full max-w-sm">
         <header className="rounded-[30px] bg-white p-5 shadow-[0_18px_40px_-28px_rgba(27,27,27,0.35)]">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-[#2D6A4F]/70">
-            Task Manager
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#1B1B1B]">
-            Daily task setup
-          </h1>
-          <p className="mt-2 text-sm text-[#1B1B1B]/60">
-            Switch between children, keep tasks active, and add new routines.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-[#2D6A4F]/70">
+                Task Manager
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#1B1B1B]">
+                Daily task setup
+              </h1>
+              <p className="mt-2 text-sm text-[#1B1B1B]/60">
+                Switch between children, keep tasks active, and add new routines.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="min-h-12 shrink-0 rounded-2xl bg-[#D8F3DC] px-4 text-sm font-semibold text-[#2D6A4F]"
+            >
+              Back to Kids View
+            </button>
+          </div>
         </header>
 
         <section className="mt-5">

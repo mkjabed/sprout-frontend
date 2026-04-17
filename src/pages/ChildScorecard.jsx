@@ -111,14 +111,12 @@ function ChildScorecard() {
       setErrorMessage("");
 
       try {
-        const [childrenResponse, dailyResponse, rewardResponse] = await Promise.all([
-          api.get("/children"),
+        const [childResponse, dailyResponse, rewardResponse] = await Promise.all([
+          api.get(`/children/${childId}`),
           api.get(`/daily/${childId}`),
           api.get(`/rewards/${childId}`),
         ]);
-        const nextChildren = Array.isArray(childrenResponse.data) ? childrenResponse.data : [];
-        const nextChild =
-          nextChildren.find((item) => String(item.id) === String(childId)) || null;
+        const nextChild = childResponse.data || null;
         const nextPayload = dailyResponse.data;
         const nextLogs = getDailyLogs(nextPayload);
         const nextReward = getReward(rewardResponse.data);
@@ -202,9 +200,9 @@ function ChildScorecard() {
             }
           : currentReward,
       );
+      setStreak(response.data?.streak ?? streak);
 
       if (allMustDoComplete) {
-        setStreak((currentStreak) => currentStreak + 1);
         setIsCelebrationOpen(true);
       }
     } catch (error) {

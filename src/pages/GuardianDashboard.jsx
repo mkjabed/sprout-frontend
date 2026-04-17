@@ -215,13 +215,22 @@ function GuardianDashboard() {
                 A quick look at today&apos;s progress across your family.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="min-h-12 rounded-2xl bg-white/14 px-4 text-sm font-semibold text-white"
-            >
-              Sign Out
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="min-h-12 rounded-2xl bg-white px-4 text-sm font-semibold text-[#2D6A4F]"
+              >
+                Back to Kids View
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="min-h-12 rounded-2xl bg-white/14 px-4 text-sm font-semibold text-white"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </header>
 

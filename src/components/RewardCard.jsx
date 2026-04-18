@@ -1,4 +1,10 @@
-function RewardCard({ reward, onDeliver, isDelivering = false }) {
+function RewardCard({
+  reward,
+  onDeliver,
+  onArchive,
+  isDelivering = false,
+  isArchiving = false,
+}) {
   const currentPoints = reward.current_points ?? reward.currentPoints ?? 0;
   const pointsRequired =
     reward.points_required ?? reward.pointsRequired ?? reward.target_points ?? 0;
@@ -33,18 +39,32 @@ function RewardCard({ reward, onDeliver, isDelivering = false }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onDeliver}
-        disabled={!isUnlocked || isDelivering}
-        className={`mt-4 min-h-12 w-full rounded-2xl px-4 py-3 text-base font-semibold ${
-          isUnlocked
-            ? "bg-[#2D6A4F] text-white"
-            : "bg-[#D0D0D0] text-[#1B1B1B]/60"
-        } ${isDelivering ? "opacity-70" : ""}`}
-      >
-        {isDelivering ? "Updating..." : "Mark as Delivered"}
-      </button>
+      <div className="mt-4 flex gap-3">
+        <button
+          type="button"
+          onClick={onDeliver}
+          disabled={!isUnlocked || isDelivering || isArchiving}
+          className={`min-h-12 flex-1 rounded-2xl px-4 py-3 text-base font-semibold ${
+            isUnlocked
+              ? "bg-[#2D6A4F] text-white"
+              : "bg-[#D0D0D0] text-[#1B1B1B]/60"
+          } ${isDelivering || isArchiving ? "opacity-70" : ""}`}
+        >
+          {isDelivering ? "Updating..." : "Mark as Delivered"}
+        </button>
+
+        <button
+          type="button"
+          onClick={onArchive}
+          disabled={isDelivering || isArchiving}
+          className={`min-h-12 rounded-2xl bg-[#1B1B1B] px-4 py-3 text-base font-semibold text-white ${
+            isDelivering || isArchiving ? "opacity-70" : ""
+          }`}
+          aria-label={`Archive ${reward.title}`}
+        >
+          {isArchiving ? "Archiving..." : "Archive"}
+        </button>
+      </div>
     </article>
   );
 }

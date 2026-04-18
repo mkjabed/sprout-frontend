@@ -46,6 +46,7 @@ function RewardsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deliveringRewardId, setDeliveringRewardId] = useState(null);
+  const [archivingRewardId, setArchivingRewardId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [title, setTitle] = useState("");
@@ -135,11 +136,6 @@ function RewardsPage() {
     };
   }, [selectedChildId]);
 
-  async function refreshRewards(childId) {
-    const response = await api.get(`/rewards/${childId}`);
-    setRewards(Array.isArray(response.data) ? response.data : []);
-  }
-
   async function handleDeliverReward(reward) {
     const rewardId = getRewardId(reward);
 
@@ -152,11 +148,37 @@ function RewardsPage() {
 
     try {
       await api.patch(`/rewards/${rewardId}/deliver`);
-      await refreshRewards(selectedChildId);
+      setRewards((currentRewards) =>
+        currentRewards.filter((currentReward) => getRewardId(currentReward) !== rewardId),
+      );
+      setSuccessMessage("Reward delivered.");
     } catch {
       setErrorMessage("We couldn't update that reward right now.");
     } finally {
       setDeliveringRewardId(null);
+    }
+  }
+
+  async function handleArchiveReward(reward) {
+    const rewardId = getRewardId(reward);
+
+    if (!rewardId) {
+      return;
+    }
+
+    setArchivingRewardId(rewardId);
+    setErrorMessage("");
+
+    try {
+      await api.patch(`/rewards/${rewardId}/deliver`);
+      setRewards((currentRewards) =>
+        currentRewards.filter((currentReward) => getRewardId(currentReward) !== rewardId),
+      );
+      setSuccessMessage("Reward archived.");
+    } catch {
+      setErrorMessage("We couldn't archive that reward right now.");
+    } finally {
+      setArchivingRewardId(null);
     }
   }
 
@@ -179,8 +201,8 @@ function RewardsPage() {
         title: title.trim(),
         points_required: numericPoints,
       });
-
-      await refreshRewards(selectedChildId);
+      const response = await api.get(`/rewards/${selectedChildId}`);
+      setRewards(Array.isArray(response.data) ? response.data : []);
       setTitle("");
       setPointsRequired("50");
       setIsModalOpen(false);
@@ -191,6 +213,8 @@ function RewardsPage() {
       setIsSubmitting(false);
     }
   }
+
+  const activeRewards = rewards.filter((reward) => reward.is_active ?? reward.isActive ?? true);
 
   return (
     <main className="min-h-screen bg-[#F4F4F4] px-4 pb-28 pt-5 text-[#1B1B1B]">
@@ -263,7 +287,7 @@ function RewardsPage() {
             </div>
           ) : null}
 
-          {!isLoadingRewards && rewards.length === 0 ? (
+          {!isLoadingRewards && activeRewards.length === 0 ? (
             <EmptyStateCard
               eyebrow="Rewards"
               title="No rewards set up yet"
@@ -274,12 +298,14 @@ function RewardsPage() {
           ) : null}
 
           {!isLoadingRewards &&
-            rewards.map((reward) => (
+            activeRewards.map((reward) => (
               <RewardCard
                 key={getRewardId(reward)}
                 reward={reward}
                 isDelivering={deliveringRewardId === getRewardId(reward)}
+                isArchiving={archivingRewardId === getRewardId(reward)}
                 onDeliver={() => handleDeliverReward(reward)}
+                onArchive={() => handleArchiveReward(reward)}
               />
             ))}
         </section>

@@ -37,9 +37,7 @@ function BottomNavItem({ to, icon, label }) {
   );
 }
 
-function TaskRow({ task, onToggle, isUpdating }) {
-  const isActive = task.is_active ?? task.isActive ?? true;
-
+function TaskRow({ task, onArchive, isUpdating }) {
   return (
     <div className="flex min-h-16 items-center gap-3 rounded-[24px] bg-[#F4F4F4] p-4">
       <div className="min-w-0 flex-1">
@@ -48,24 +46,20 @@ function TaskRow({ task, onToggle, isUpdating }) {
           <span className="rounded-2xl bg-white px-3 py-1 font-semibold text-[#2D6A4F]">
             {task.points} pts
           </span>
-          <span>{isActive ? "Active" : "Inactive"}</span>
+          <span>Active</span>
         </div>
       </div>
 
       <button
         type="button"
-        onClick={onToggle}
+        onClick={onArchive}
         disabled={isUpdating}
-        className={`flex h-12 w-20 items-center rounded-full p-1 transition ${
-          isActive ? "bg-[#52B788]" : "bg-[#D0D0D0]"
-        } ${isUpdating ? "opacity-70" : ""}`}
-        aria-label={`Toggle ${task.title}`}
+        className={`min-h-12 rounded-[18px] bg-[#1B1B1B] px-4 text-sm font-semibold text-white transition ${
+          isUpdating ? "opacity-70" : ""
+        }`}
+        aria-label={`Archive ${task.title}`}
       >
-        <span
-          className={`h-10 w-10 rounded-full bg-white shadow-sm transition-transform ${
-            isActive ? "translate-x-8" : "translate-x-0"
-          }`}
-        />
+        {isUpdating ? "Archiving..." : "Archive"}
       </button>
     </div>
   );
@@ -176,7 +170,7 @@ function TaskManager() {
     };
   }, [selectedChildId]);
 
-  async function handleToggleTask(task) {
+  async function handleArchiveTask(task) {
     const taskId = getTaskId(task);
 
     if (!taskId) {
@@ -189,17 +183,11 @@ function TaskManager() {
     try {
       await api.patch(`/tasks/${taskId}/toggle`);
       setTasks((currentTasks) =>
-        currentTasks.map((currentTask) =>
-          getTaskId(currentTask) === taskId
-            ? {
-                ...currentTask,
-                is_active: !(currentTask.is_active ?? currentTask.isActive ?? true),
-              }
-            : currentTask,
-        ),
+        currentTasks.filter((currentTask) => getTaskId(currentTask) !== taskId),
       );
+      setSuccessMessage("Task archived.");
     } catch {
-      setErrorMessage("We couldn't update that task right now.");
+      setErrorMessage("We couldn't archive that task right now.");
     } finally {
       setUpdatingTaskId(null);
     }
@@ -237,8 +225,9 @@ function TaskManager() {
     }
   }
 
-  const mustDoTasks = tasks.filter((task) => isMustDoTask(task));
-  const optionalTasks = tasks.filter((task) => !isMustDoTask(task));
+  const activeTasks = tasks.filter((task) => task.is_active ?? task.isActive ?? true);
+  const mustDoTasks = activeTasks.filter((task) => isMustDoTask(task));
+  const optionalTasks = activeTasks.filter((task) => !isMustDoTask(task));
 
   return (
     <main className="min-h-screen bg-[#F4F4F4] px-4 pb-28 pt-5 text-[#1B1B1B]">
@@ -329,7 +318,7 @@ function TaskManager() {
                     key={getTaskId(task)}
                     task={task}
                     isUpdating={updatingTaskId === getTaskId(task)}
-                    onToggle={() => handleToggleTask(task)}
+                    onArchive={() => handleArchiveTask(task)}
                   />
                 ))
               ) : (
@@ -371,7 +360,7 @@ function TaskManager() {
                     key={getTaskId(task)}
                     task={task}
                     isUpdating={updatingTaskId === getTaskId(task)}
-                    onToggle={() => handleToggleTask(task)}
+                    onArchive={() => handleArchiveTask(task)}
                   />
                 ))
               ) : (

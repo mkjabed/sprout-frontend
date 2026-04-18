@@ -5,37 +5,6 @@ import CelebrationScreen from "../components/CelebrationScreen.jsx";
 import EmptyStateCard from "../components/EmptyStateCard.jsx";
 import TaskItem from "../components/TaskItem.jsx";
 
-function getDailyLogs(payload) {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  if (Array.isArray(payload?.logs)) {
-    return payload.logs;
-  }
-
-  if (Array.isArray(payload?.items)) {
-    return payload.items;
-  }
-
-  if (Array.isArray(payload?.data)) {
-    return payload.data;
-  }
-
-  return [];
-}
-
-function getChildName(payload, logs, child, childId) {
-  return (
-    child?.name ||
-    payload?.child_name ||
-    payload?.child?.name ||
-    logs[0]?.child_name ||
-    logs[0]?.child?.name ||
-    `Child ${childId}`
-  );
-}
-
 function getCompletedValue(log) {
   return Boolean(
     log.completed ??
@@ -53,14 +22,17 @@ function getTaskPoints(log) {
   return log.points ?? log.task?.points ?? log.task_points ?? log.taskPoints ?? 0;
 }
 
-function getTaskType(log) {
-  const rawType = log.task?.task_type || log.task_type || log.type || "";
-  return String(rawType).toLowerCase();
-}
-
-function isMustDoTask(log) {
-  const taskType = getTaskType(log);
-  return taskType === "must-do" || taskType === "must_do" || taskType === "required";
+/** Normalize API / legacy shapes so tasks always land in a bucket. */
+function getNormalizedTaskType(log) {
+  const raw = log.task_type ?? log.task?.task_type ?? log.type ?? "";
+  const s = String(raw).toLowerCase().replace(/-/g, "_");
+  if (s === "must_do" || s === "required") {
+    return "must_do";
+  }
+  if (s === "optional") {
+    return "optional";
+  }
+  return "must_do";
 }
 
 function getReward(payload) {
@@ -87,10 +59,6 @@ function getReward(payload) {
   return null;
 }
 
-function getLogId(log) {
-  return log.log_id ?? log.id;
-}
-
 function ChildScorecard() {
   const { childId } = useParams();
   const [child, setChild] = useState(null);
@@ -105,6 +73,10 @@ function ChildScorecard() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
+    if (!childId) {
+      return undefined;
+    }
+
     let isMounted = true;
 
     async function loadScorecard() {
@@ -112,32 +84,60 @@ function ChildScorecard() {
       setErrorMessage("");
 
       try {
-        const [childResponse, dailyResponse, rewardResponse] = await Promise.all([
-          api.get(`/children/${childId}`),
-          api.get(`/daily/${childId}`),
-          api.get(`/rewards/${childId}`),
-        ]);
-        const nextChild = childResponse.data || null;
-        const nextPayload = dailyResponse.data;
-        const nextLogs = getDailyLogs(nextPayload);
-        const nextReward = getReward(rewardResponse.data);
-        const earnedPoints = nextLogs.reduce(
+        const dailyResponse = await api.get(`/daily/${childId}`);
+        let rewardPayload = null;
+        try {
+          const rewardResponse = await api.get(`/rewards/${childId}`);
+          rewardPayload = rewardResponse.data;
+        } catch {
+          rewardPayload = null;
+        }
+
+        const dailyData = dailyResponse.data;
+        const tasks = Array.isArray(dailyData?.logs) ? dailyData.logs : [];
+        const sampleTypes = tasks.slice(0, 5).map((log) => ({
+          raw: log.task_type ?? log.task?.task_type ?? log.type ?? null,
+          normalized: getNormalizedTaskType(log),
+        }));
+        // #region agent log
+        fetch("http://127.0.0.1:7431/ingest/9cd82570-c4df-416f-b140-0564c0545897", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "aae688",
+          },
+          body: JSON.stringify({
+            sessionId: "aae688",
+            location: "ChildScorecard.jsx:loadScorecard",
+            message: "GET /daily + optional rewards",
+            data: {
+              hasData: Boolean(dailyResponse?.data),
+              keys: dailyData ? Object.keys(dailyData) : [],
+              logsLen: tasks.length,
+              sampleTypes,
+              rewardSkipped: rewardPayload === null,
+            },
+            timestamp: Date.now(),
+            hypothesisId: "D",
+          }),
+        }).catch(() => {});
+        // #endregion
+        console.log("Reward response:", rewardPayload);
+        console.log("Tasks set to state:", tasks);
+        const nextReward = getReward(rewardPayload);
+        const earnedPoints = tasks.reduce(
           (total, log) => total + (getCompletedValue(log) ? getTaskPoints(log) : 0),
           0,
         );
-        const mustDoLogs = nextLogs.filter((log) => isMustDoTask(log));
-        const allMustDoComplete =
-          mustDoLogs.length > 0 &&
-          mustDoLogs.every((log) => getCompletedValue(log));
 
         if (isMounted) {
-          setChild(nextChild);
-          setDailyPayload(nextPayload);
-          setLogs(nextLogs);
+          setChild(dailyData?.child || null);
+          setDailyPayload(dailyData);
+          setLogs(tasks);
           setReward(nextReward);
           setPointsEarnedToday(earnedPoints);
-          setStreak(nextPayload?.streak ?? nextPayload?.current_streak ?? 0);
-          setIsCelebrationOpen(allMustDoComplete);
+          setStreak(dailyData?.streak ?? 0);
+          setIsCelebrationOpen(false);
         }
       } catch {
         if (isMounted) {
@@ -165,7 +165,7 @@ function ChildScorecard() {
   }, [childId]);
 
   async function handleTaskComplete(log) {
-    const logId = getLogId(log);
+    const logId = log.log_id;
 
     if (!logId || getCompletedValue(log) || pendingLogId) {
       return;
@@ -175,10 +175,27 @@ function ChildScorecard() {
     setErrorMessage("");
 
     try {
+      // #region agent log
+      fetch("http://127.0.0.1:7431/ingest/9cd82570-c4df-416f-b140-0564c0545897", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "aae688",
+        },
+        body: JSON.stringify({
+          sessionId: "aae688",
+          location: "ChildScorecard.jsx:handleTaskComplete",
+          message: "POST /daily/:log_id/complete",
+          data: { logId, hasTaskId: Boolean(log.task_id) },
+          timestamp: Date.now(),
+          hypothesisId: "B",
+        }),
+      }).catch(() => {});
+      // #endregion
       const response = await api.post(`/daily/${logId}/complete`);
       const pointsEarned = response.data?.points_earned ?? getTaskPoints(log);
       const nextLogs = logs.map((currentLog) =>
-        getLogId(currentLog) === logId
+        currentLog.log_id === logId
           ? {
               ...currentLog,
               completed: true,
@@ -186,7 +203,7 @@ function ChildScorecard() {
             }
           : currentLog,
       );
-      const mustDoLogs = nextLogs.filter((currentLog) => isMustDoTask(currentLog));
+      const mustDoLogs = nextLogs.filter((currentLog) => getNormalizedTaskType(currentLog) === "must_do");
       const allMustDoComplete =
         mustDoLogs.length > 0 &&
         mustDoLogs.every((currentLog) => getCompletedValue(currentLog));
@@ -217,9 +234,9 @@ function ChildScorecard() {
     }
   }
 
-  const childName = getChildName(dailyPayload, logs, child, childId);
-  const mustDoTasks = logs.filter((log) => isMustDoTask(log));
-  const optionalTasks = logs.filter((log) => !isMustDoTask(log));
+  const childName = dailyPayload?.child_name || child?.name || `Child ${childId}`;
+  const mustDoTasks = logs.filter((log) => getNormalizedTaskType(log) === "must_do");
+  const optionalTasks = logs.filter((log) => getNormalizedTaskType(log) === "optional");
   const rewardName = reward?.title || reward?.name || "Next reward";
   const rewardTarget =
     reward?.points_required ?? reward?.pointsRequired ?? reward?.target_points ?? 0;
@@ -299,7 +316,7 @@ function ChildScorecard() {
                   {mustDoTasks.length > 0 ? (
                     mustDoTasks.map((log) => (
                       <TaskItem
-                        key={getLogId(log) ?? getTaskTitle(log)}
+                        key={log.log_id ?? getTaskTitle(log)}
                         title={getTaskTitle(log)}
                         points={getTaskPoints(log)}
                         completed={getCompletedValue(log)}
@@ -329,7 +346,7 @@ function ChildScorecard() {
                   {optionalTasks.length > 0 ? (
                     optionalTasks.map((log) => (
                       <TaskItem
-                        key={getLogId(log) ?? getTaskTitle(log)}
+                        key={log.log_id ?? getTaskTitle(log)}
                         title={getTaskTitle(log)}
                         points={getTaskPoints(log)}
                         completed={getCompletedValue(log)}

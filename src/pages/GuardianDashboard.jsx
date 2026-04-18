@@ -8,26 +8,6 @@ function getChildId(child) {
   return child.id ?? child.child_id ?? child.childId;
 }
 
-function getDailyLogs(payload) {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  if (Array.isArray(payload?.logs)) {
-    return payload.logs;
-  }
-
-  if (Array.isArray(payload?.items)) {
-    return payload.items;
-  }
-
-  if (Array.isArray(payload?.data)) {
-    return payload.data;
-  }
-
-  return [];
-}
-
 function getActiveReward(payload) {
   if (!payload) {
     return null;
@@ -89,16 +69,6 @@ function getRewardTarget(reward) {
   return reward?.points_required ?? reward?.pointsRequired ?? reward?.target_points ?? 0;
 }
 
-function getStreakValue(child, dailyPayload) {
-  return (
-    dailyPayload?.streak ??
-    dailyPayload?.current_streak ??
-    child.streak ??
-    child.current_streak ??
-    0
-  );
-}
-
 function getMustDoLabel(totalCount) {
   return totalCount === 1 ? "task" : "tasks";
 }
@@ -139,6 +109,7 @@ function GuardianDashboard() {
 
       try {
         const childrenResponse = await api.get("/children");
+        console.log("Dashboard children response:", childrenResponse.data);
         const children = Array.isArray(childrenResponse.data)
           ? childrenResponse.data
           : childrenResponse.data?.children || [];
@@ -146,33 +117,79 @@ function GuardianDashboard() {
         const summaryResults = await Promise.all(
           children.map(async (child) => {
             const childId = getChildId(child);
-            const [dailyResponse, rewardResponse] = await Promise.all([
-              api.get(`/daily/${childId}`),
-              api.get(`/rewards/${childId}`),
-            ]);
+            console.log("Dashboard summary childId:", childId);
 
-            const dailyPayload = dailyResponse.data;
-            const logs = getDailyLogs(dailyPayload);
-            const activeReward = getActiveReward(rewardResponse.data);
-            const completedCount = logs.filter((log) => getCompletedValue(log)).length;
-            const totalCount = logs.length;
-            const rewardProgress = getRewardProgress(activeReward, logs, dailyPayload);
-            const rewardTarget = getRewardTarget(activeReward);
+            try {
+              const dailyResponse = await api.get(`/daily/${childId}`);
+              let rewardPayload = null;
+              try {
+                const rewardResponse = await api.get(`/rewards/${childId}`);
+                rewardPayload = rewardResponse.data;
+                console.log("Dashboard reward response:", rewardPayload);
+              } catch {
+                rewardPayload = null;
+              }
 
-            return {
-              id: childId,
-              name: child.name || child.child_name || "Child",
-              grade: child.grade || child.class_name || "No grade yet",
-              streak: getStreakValue(child, dailyPayload),
-              completedCount,
-              totalCount,
-              taskProgress: totalCount ? (completedCount / totalCount) * 100 : 0,
-              rewardName: activeReward?.title || activeReward?.name || "No active reward",
-              rewardProgress,
-              rewardTarget,
-              rewardPercent:
-                rewardTarget > 0 ? Math.min((rewardProgress / rewardTarget) * 100, 100) : 0,
-            };
+              const dailyData = dailyResponse.data;
+              const logs = Array.isArray(dailyData?.logs) ? dailyData.logs : [];
+              // #region agent log
+              fetch("http://127.0.0.1:7431/ingest/9cd82570-c4df-416f-b140-0564c0545897", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Debug-Session-Id": "aae688",
+                },
+                body: JSON.stringify({
+                  sessionId: "aae688",
+                  location: "GuardianDashboard.jsx:loadDashboard",
+                  message: "GET /daily per child",
+                  data: {
+                    childId,
+                    logsLen: logs.length,
+                    completedRaw: logs.filter((l) => l.completed === true).length,
+                    completedLoose: logs.filter((l) => getCompletedValue(l)).length,
+                    rewardSkipped: rewardPayload === null,
+                  },
+                  timestamp: Date.now(),
+                  hypothesisId: "E",
+                }),
+              }).catch(() => {});
+              // #endregion
+              const activeReward = getActiveReward(rewardPayload);
+              const completedCount = logs.filter((l) => getCompletedValue(l)).length;
+              const totalCount = logs.length;
+              const rewardProgress = getRewardProgress(activeReward, logs, dailyData);
+              const rewardTarget = getRewardTarget(activeReward);
+
+              return {
+                id: childId,
+                name: dailyData?.child_name || child.name || child.child_name || "Child",
+                grade: child.grade || child.class_name || "No grade yet",
+                streak: dailyData?.streak ?? 0,
+                completedCount,
+                totalCount,
+                taskProgress: totalCount ? (completedCount / totalCount) * 100 : 0,
+                rewardName: activeReward?.title || activeReward?.name || "No active reward",
+                rewardProgress,
+                rewardTarget,
+                rewardPercent:
+                  rewardTarget > 0 ? Math.min((rewardProgress / rewardTarget) * 100, 100) : 0,
+              };
+            } catch {
+              return {
+                id: childId,
+                name: child.name || child.child_name || "Child",
+                grade: child.grade || child.class_name || "No grade yet",
+                streak: 0,
+                completedCount: 0,
+                totalCount: 0,
+                taskProgress: 0,
+                rewardName: "No active reward",
+                rewardProgress: 0,
+                rewardTarget: 0,
+                rewardPercent: 0,
+              };
+            }
           }),
         );
 

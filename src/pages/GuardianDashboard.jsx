@@ -73,6 +73,22 @@ function getMustDoLabel(totalCount) {
   return totalCount === 1 ? "task" : "tasks";
 }
 
+function createChildSummary(child) {
+  return {
+    id: getChildId(child),
+    name: child.name || child.child_name || "Child",
+    grade: child.grade ? `Grade ${child.grade}` : "No grade yet",
+    streak: 0,
+    completedCount: 0,
+    totalCount: 0,
+    taskProgress: 0,
+    rewardName: "No active reward",
+    rewardProgress: 0,
+    rewardTarget: 0,
+    rewardPercent: 0,
+  };
+}
+
 function BottomNavItem({ to, icon, label }) {
   return (
     <NavLink
@@ -99,6 +115,14 @@ function GuardianDashboard() {
   const [childSummaries, setChildSummaries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isAddChildExpanded, setIsAddChildExpanded] = useState(false);
+  const [childForm, setChildForm] = useState({
+    name: "",
+    grade: "",
+    age: "",
+  });
+  const [childFormError, setChildFormError] = useState("");
+  const [isCreatingChild, setIsCreatingChild] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -109,7 +133,6 @@ function GuardianDashboard() {
 
       try {
         const childrenResponse = await api.get("/children");
-        console.log("Dashboard children response:", childrenResponse.data);
         const children = Array.isArray(childrenResponse.data)
           ? childrenResponse.data
           : childrenResponse.data?.children || [];
@@ -117,7 +140,6 @@ function GuardianDashboard() {
         const summaryResults = await Promise.all(
           children.map(async (child) => {
             const childId = getChildId(child);
-            console.log("Dashboard summary childId:", childId);
 
             try {
               const dailyResponse = await api.get(`/daily/${childId}`);
@@ -125,36 +147,12 @@ function GuardianDashboard() {
               try {
                 const rewardResponse = await api.get(`/rewards/${childId}`);
                 rewardPayload = rewardResponse.data;
-                console.log("Dashboard reward response:", rewardPayload);
               } catch {
                 rewardPayload = null;
               }
 
               const dailyData = dailyResponse.data;
               const logs = Array.isArray(dailyData?.logs) ? dailyData.logs : [];
-              // #region agent log
-              fetch("http://127.0.0.1:7431/ingest/9cd82570-c4df-416f-b140-0564c0545897", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Debug-Session-Id": "aae688",
-                },
-                body: JSON.stringify({
-                  sessionId: "aae688",
-                  location: "GuardianDashboard.jsx:loadDashboard",
-                  message: "GET /daily per child",
-                  data: {
-                    childId,
-                    logsLen: logs.length,
-                    completedRaw: logs.filter((l) => l.completed === true).length,
-                    completedLoose: logs.filter((l) => getCompletedValue(l)).length,
-                    rewardSkipped: rewardPayload === null,
-                  },
-                  timestamp: Date.now(),
-                  hypothesisId: "E",
-                }),
-              }).catch(() => {});
-              // #endregion
               const activeReward = getActiveReward(rewardPayload);
               const completedCount = logs.filter((l) => getCompletedValue(l)).length;
               const totalCount = logs.length;
@@ -176,19 +174,7 @@ function GuardianDashboard() {
                   rewardTarget > 0 ? Math.min((rewardProgress / rewardTarget) * 100, 100) : 0,
               };
             } catch {
-              return {
-                id: childId,
-                name: child.name || child.child_name || "Child",
-                grade: child.grade || child.class_name || "No grade yet",
-                streak: 0,
-                completedCount: 0,
-                totalCount: 0,
-                taskProgress: 0,
-                rewardName: "No active reward",
-                rewardProgress: 0,
-                rewardTarget: 0,
-                rewardPercent: 0,
-              };
+              return createChildSummary(child);
             }
           }),
         );
@@ -214,6 +200,80 @@ function GuardianDashboard() {
       isMounted = false;
     };
   }, []);
+
+  function handleChildFormChange(event) {
+    const { name, value } = event.target;
+
+    setChildForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
+  }
+
+  function handleCancelAddChild() {
+    if (isCreatingChild) {
+      return;
+    }
+
+    setIsAddChildExpanded(false);
+    setChildForm({
+      name: "",
+      grade: "",
+      age: "",
+    });
+    setChildFormError("");
+  }
+
+  async function handleCreateChild(event) {
+    event.preventDefault();
+
+    const trimmedName = childForm.name.trim();
+    const grade = Number(childForm.grade);
+    const age = Number(childForm.age);
+
+    if (!trimmedName) {
+      setChildFormError("Add your child's name to continue.");
+      return;
+    }
+
+    if (!Number.isInteger(grade) || grade < 1 || grade > 8) {
+      setChildFormError("Grade should be a whole number from 1 to 8.");
+      return;
+    }
+
+    if (!Number.isInteger(age) || age < 6 || age > 14) {
+      setChildFormError("Age should be a whole number from 6 to 14.");
+      return;
+    }
+
+    setIsCreatingChild(true);
+    setChildFormError("");
+
+    try {
+      const response = await api.post("/children", {
+        name: trimmedName,
+        grade,
+        age,
+      });
+
+      setChildSummaries((currentChildren) => [
+        ...currentChildren,
+        createChildSummary(response.data),
+      ]);
+      setChildForm({
+        name: "",
+        grade: "",
+        age: "",
+      });
+      setIsAddChildExpanded(false);
+    } catch (error) {
+      setChildFormError(
+        error.response?.data?.detail || "We couldn't create that child profile yet.",
+      );
+    } finally {
+      setIsCreatingChild(false);
+    }
+  }
 
   const guardianName = guardian?.name || guardian?.full_name || "Guardian";
 
@@ -344,6 +404,110 @@ function GuardianDashboard() {
                 </div>
               </article>
             ))}
+
+          {!isLoading && !errorMessage ? (
+            isAddChildExpanded ? (
+              <form
+                onSubmit={handleCreateChild}
+                className="rounded-[30px] border-2 border-dashed border-[#2D6A4F] bg-[#D8F3DC] p-5 shadow-[0_18px_40px_-28px_rgba(27,27,27,0.35)]"
+              >
+                <div>
+                  <p className="text-xs uppercase tracking-[0.16em] text-[#1B1B1B]/45">
+                    New child profile
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[#1B1B1B]">
+                    Add a child
+                  </h2>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.16em] text-[#1B1B1B]/45">
+                      Child name
+                    </span>
+                    <input
+                      type="text"
+                      name="name"
+                      value={childForm.name}
+                      onChange={handleChildFormChange}
+                      className="mt-2 min-h-12 w-full rounded-2xl bg-[#F4F4F4] px-4 py-3 text-[#1B1B1B] outline-none"
+                      placeholder="Avery"
+                      autoComplete="off"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.16em] text-[#1B1B1B]/45">
+                      Grade
+                    </span>
+                    <input
+                      type="number"
+                      name="grade"
+                      value={childForm.grade}
+                      onChange={handleChildFormChange}
+                      className="mt-2 min-h-12 w-full rounded-2xl bg-[#F4F4F4] px-4 py-3 text-[#1B1B1B] outline-none"
+                      placeholder="3"
+                      min="1"
+                      max="8"
+                      inputMode="numeric"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-[0.16em] text-[#1B1B1B]/45">
+                      Age
+                    </span>
+                    <input
+                      type="number"
+                      name="age"
+                      value={childForm.age}
+                      onChange={handleChildFormChange}
+                      className="mt-2 min-h-12 w-full rounded-2xl bg-[#F4F4F4] px-4 py-3 text-[#1B1B1B] outline-none"
+                      placeholder="8"
+                      min="6"
+                      max="14"
+                      inputMode="numeric"
+                    />
+                  </label>
+
+                  {childFormError ? (
+                    <p className="rounded-2xl bg-[#F4F4F4] px-4 py-3 text-sm text-[#1B1B1B]/60">
+                      {childFormError}
+                    </p>
+                  ) : null}
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="submit"
+                      disabled={isCreatingChild}
+                      className="min-h-12 rounded-2xl bg-[#2D6A4F] px-5 py-3 font-semibold text-white"
+                    >
+                      {isCreatingChild ? "Adding..." : "Add"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelAddChild}
+                      disabled={isCreatingChild}
+                      className="min-h-12 rounded-2xl bg-[#F4F4F4] px-5 py-3 font-semibold text-[#1B1B1B]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddChildExpanded(true);
+                  setChildFormError("");
+                }}
+                className="flex min-h-12 w-full items-center justify-center rounded-[30px] border-2 border-dashed border-[#2D6A4F] bg-[#D8F3DC] px-5 py-6 text-center text-lg font-semibold tracking-[-0.04em] text-[#2D6A4F] shadow-[0_18px_40px_-28px_rgba(27,27,27,0.35)]"
+              >
+                + Add a child
+              </button>
+            )
+          ) : null}
         </section>
       </div>
 

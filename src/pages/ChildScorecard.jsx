@@ -265,7 +265,7 @@ function ChildScorecard() {
           <p className="mt-2 text-sm text-[#1B1B1B]/55">{todayLabel}</p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-[24px] bg-[#F4F4F4] p-4">
+            <div className="rounded-3xl bg-[#F4F4F4] p-4">
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#1B1B1B]/45">
                 Points today
               </p>
@@ -273,7 +273,7 @@ function ChildScorecard() {
                 {pointsEarnedToday}
               </p>
             </div>
-            <div className="rounded-[24px] bg-[#2D6A4F] p-4 text-white">
+            <div className="rounded-3xl bg-[#2D6A4F] p-4 text-white">
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/70">
                 Current streak
               </p>

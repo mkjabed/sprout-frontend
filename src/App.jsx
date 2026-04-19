@@ -4,6 +4,7 @@ import ChildScorecard from "./pages/ChildScorecard.jsx";
 import GuardianDashboard from "./pages/GuardianDashboard.jsx";
 import ProfileSelector from "./pages/ProfileSelector.jsx";
 import RewardsPage from "./pages/RewardsPage.jsx";
+import SignupPage from "./pages/SignupPage.jsx";
 import TaskManager from "./pages/TaskManager.jsx";
 
 function ProtectedRoute({ children }) {
@@ -20,6 +21,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<ProfileSelector />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route
         path="/dashboard"
         element={

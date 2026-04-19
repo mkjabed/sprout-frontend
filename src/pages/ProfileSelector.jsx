@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios.js";
 import PinModal from "../components/PinModal.jsx";
 import ProfileCard from "../components/ProfileCard.jsx";
@@ -126,6 +126,13 @@ function ProfileSelector() {
         <div className="pt-4 text-center text-xs text-[#1B1B1B]/45">
           Calm routines for kids and guardians.
         </div>
+
+        <p className="mt-6 text-center text-sm text-[#1B1B1B]/55">
+          New here?
+          <Link to="/signup" className="ml-1 font-semibold text-[#2D6A4F]">
+            Create an account
+          </Link>
+        </p>
       </div>
 
       <PinModal

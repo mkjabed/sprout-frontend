@@ -12,30 +12,30 @@ React frontend for Sprout, a daily habit tracker for kids and guardians.
 
 ## Project Structure
 
-sprout-frontend/
-├── src/
-│ ├── api/
-│ │ └── axios.js
-│ ├── context/
-│ │ └── AuthContext.jsx
-│ ├── pages/
-│ │ ├── ProfileSelector.jsx
-│ │ ├── SignupPage.jsx
-│ │ ├── GuardianDashboard.jsx
-│ │ ├── ChildScorecard.jsx
-│ │ ├── TaskManager.jsx
-│ │ └── RewardsPage.jsx
-│ ├── components/
-│ │ ├── ProfileCard.jsx
-│ │ ├── PinModal.jsx
-│ │ ├── TaskItem.jsx
-│ │ ├── RewardCard.jsx
-│ │ ├── CelebrationScreen.jsx
-│ │ └── EmptyStateCard.jsx
-│ ├── App.jsx
-│ └── main.jsx
-├── .env.production
-└── index.html
+    sprout-frontend/
+    ├── src/
+    │ ├── api/
+    │ │ └── axios.js
+    │ ├── context/
+    │ │ └── AuthContext.jsx
+    │ ├── pages/
+    │ │ ├── ProfileSelector.jsx
+    │ │ ├── SignupPage.jsx
+    │ │ ├── GuardianDashboard.jsx
+    │ │ ├── ChildScorecard.jsx
+    │ │ ├── TaskManager.jsx
+    │ │ └── RewardsPage.jsx
+    │ ├── components/
+    │ │ ├── ProfileCard.jsx
+    │ │ ├── PinModal.jsx
+    │ │ ├── TaskItem.jsx
+    │ │ ├── RewardCard.jsx
+    │ │ ├── CelebrationScreen.jsx
+    │ │ └── EmptyStateCard.jsx
+    │ ├── App.jsx
+    │ └── main.jsx
+    ├── .env.production
+    └── index.html
 
 ## Local Setup
 

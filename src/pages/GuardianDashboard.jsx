@@ -236,7 +236,7 @@ function GuardianDashboard() {
       return;
     }
 
-    if (!Number.isInteger(grade) || grade < 1 || grade > 8) {
+    if (!Number.isInteger(grade) || grade < 1 || grade > 13) {
       setChildFormError("Grade should be a whole number from 1 to 8.");
       return;
     }
@@ -464,8 +464,8 @@ function GuardianDashboard() {
                       onChange={handleChildFormChange}
                       className="mt-2 min-h-12 w-full rounded-2xl bg-[#F4F4F4] px-4 py-3 text-[#1B1B1B] outline-none"
                       placeholder="8"
-                      min="6"
-                      max="14"
+                      min="5"
+                      max="18"
                       inputMode="numeric"
                     />
                   </label>
